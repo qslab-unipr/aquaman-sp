@@ -56,7 +56,7 @@ def main(args):
 	print("Device:", dev)
 	print("Device type:", type(dev))
 
-	ideal_module_name=f'ideal_circuitN{args.n_qubits}'
+	ideal_module_name=f'circuits.ideal_circuitN{args.n_qubits}'
 	ideal_module=importlib.import_module(ideal_module_name)#takes the corresponding ideal circuit
 	
 	#execute program to generate a random state,
