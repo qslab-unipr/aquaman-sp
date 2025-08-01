@@ -1,0 +1,12 @@
+pennylane
+torch
+torchvision
+numpy
+scikit-learn
+medmnist
+scipy
+joblib
+qiskit==1.2.4
+autograd
+sympy
+matplotlib
