@@ -1,6 +1,6 @@
 # SRBB-Based Quantum State Preparation
 
-We acknowledge the financial support from Spoke 10 - ICSC - "National Research Centre in High Performance Computing, Big Data and Quantum Computing", funded by European Union – NextGenerationEU.
+We acknowledge the financial support from Spoke 10 - ICSC - "National Research Centre in High Performance Computing, Big Data and Quantum Computing" and from PNRR MUR project PE0000023-NQSTI, both funded by European Union – NextGenerationEU.
 
 
 ## Description
