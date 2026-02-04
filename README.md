@@ -34,3 +34,6 @@ During the execution, various parameters can be set: <br />
 
 The Nelder Mead optimizer can be used only with the frobenius loss.
 With the Adam otpimizer 40/50 epochs are needed.
+
+## License
+This project is licensed under the MIT License – see the LICENSE file for details.
