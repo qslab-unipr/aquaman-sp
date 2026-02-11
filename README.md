@@ -16,6 +16,7 @@ All modules have been developed in Python with the support of the PennyLane libr
 - **dataset.py** generates the training dataset;
 - **tree.py** contains a class that generate the amplitudes tree;
 - **utils.py** contains helper function;
+- **unitary_state_gen.py** contains functions to generate state and unitaries needed to obtain that state
 - **ideal_modulesNx.py** contains various circuits that can be tested.
 
 ## How To Run
@@ -30,7 +31,9 @@ During the execution, various parameters can be set: <br />
 `n_qubits [2,...,8]` <br />
 `path 'path_to_save_file'` <br />
 `state Boolean`: True if we want to obtain the precise state (modulo and phase), false if we want only the probabilities (modulo)  <br />
- 
+`--initial_state 'zero' or 'random'`: 'zero' if we want to start from |0> and arrive to $|\psi\rangle$ or from another random state <br />
+
+In the main file, you can set if you want to reach a random state or the |0> state 
 
 The Nelder Mead optimizer can be used only with the frobenius loss.
 With the Adam otpimizer 40/50 epochs are needed.
