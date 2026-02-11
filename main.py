@@ -30,7 +30,7 @@ def get_args():
 	parser.add_argument('--lr', type=float, default=0.01, help='learning rate')
 	parser.add_argument('--opt', type=str, default='Adam', choices=['Adam', 'Nelder_Mead'], help = 'optimizer used for training')
 
-	parser.add_argument('--loss', type=str, default = 'trace_distance', choices=['trace_distance', 'frob', 'fidelity'], help='loss function')
+	parser.add_argument('--loss', type=str, default = 'trace_distance', choices=['trace_distance', 'frob', 'fidelity', 'hellinger'], help='loss function')
 	parser.add_argument('--num_samples', type=int, default=1000, help="if trace or fidelity losses are used, you can set number of states for training set")
 	parser.add_argument('--test_size', type=int, default=500, help="size of testset")
 
@@ -40,10 +40,12 @@ def get_args():
 	parser.add_argument('--device', type = str, default = "sim", choices = ["sim", "hw", "iqm"], help = 'choose if u want to execute on the pennylane simulator or on ibm real hw')
 	parser.add_argument('--n_qubits', type = int, default = 2, help = 'number of qubits')
 
-	parser.add_argument('--path', type=str, default=os.path.join(os.getcwd(), "results/"), help="where to save/load the files")
+	parser.add_argument('--path', type=str, default=os.path.join(os.getcwd(), "results3/"), help="where to save/load the files")
 
 	parser.add_argument('--state', type=bool, default=False, choices=[True, False],
 					 help = "if True, the VQC will achieve the desired state, otherwise it will achieve the probabilities associated to it")
+	
+	parser.add_argument('--initial_state', type=str, default='zero', choices=['zero', 'random'], help='choose if we want to start from |0> and arrive to |phi> or from another random state |psi> -> |0> -> |phi>')
 
 	return parser.parse_args()
 
@@ -61,8 +63,30 @@ def main(args):
 	
 	#execute program to generate a random state,
 	#a specific state can be also set, as shown below.
-	for i in range(1):
-		eval.eval("random", ideal_module, args, i, dev)
+	#for i in range(1):
+	#	eval.eval("random", ideal_module, args, i, dev)
+
+	if args.initial_state == 'random':
+		args.state = True #it works only with modulo and phase training
+	
+	for i in range(50):
+		if args.initial_state == 'random':
+			print("|psi> -> |0>")
+			#|psi> -> |0>
+			U_approxIS, initial_state = eval.eval("random", ideal_module, args, i, dev)
+			print("|0> -> |phi>")
+			#|0> -> |phi>
+			eval.eval("random", ideal_module, args, i, dev, U_approxIS, initial_state)
+		else:
+			#|0> -> |phi>
+			eval.eval("random", ideal_module, args, i, dev)
+
+		print("\n\n\n")
+	
+	# |0> -> |0>
+	#eval.eval("zero", ideal_module, args, 0, dev)
+
+	#Example of circuit that can be produced
 	"""
 	if args.n_qubits == 2:
 		main_program('bell', ideal_module, args, 0)

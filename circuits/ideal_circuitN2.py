@@ -4,6 +4,7 @@ import numpy as np
 import cmath
 
 def random(dev, n_qubit):
+    dev = qml.device('default.qubit', wires = n_qubit)
     @qml.qnode(dev)
     def circuit(x, matrix, device_type, phase = False):
         if len(x) != 0:

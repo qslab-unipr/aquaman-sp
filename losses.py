@@ -1,5 +1,6 @@
 import pennylane as qml
 import numpy as np
+import autograd.numpy as anp
 import qsp_srbb_circuit as USC
 import utils
 import cmath
@@ -40,6 +41,23 @@ def fidelityLoss(Y_ideal, predictions):
 
 	return loss / num_samples
 
+def hellingerLoss(prob1, prob2):
+	"""
+	Calculate the Hellinger distance between 2 probabilities distribution
+
+	Args:	
+		prob1 (np.array): list of ideal probabilities
+		prob2 (np.array): list of probabilities produced by the QNN
+
+	Returns:
+		distance (float): hellinger distance
+	"""
+	num_samples = len(prob2)
+	loss = 0.0
+	for i in range(num_samples):
+		loss += (1/anp.sqrt(2)) * anp.sqrt(anp.sum((anp.sqrt(prob1[i]) - anp.sqrt(prob2[i]))**2))
+	return loss /num_samples
+
 def hellinger(prob1, prob2):
 	"""
 	Calculate the Hellinger distance between 2 probabilities distribution
@@ -54,7 +72,7 @@ def hellinger(prob1, prob2):
 	distance = (1/np.sqrt(2)) * np.sqrt(np.sum((np.sqrt(prob1) - np.sqrt(prob2))**2))
 	return distance
 
-def frobeniusLoss(params, x_max, SU_ideal, rot_count, U_ideal, listSU, opt, state, n_qubit, dev):
+def frobeniusLoss(params, x_max, SU_ideal, rot_count, U_ideal, listSU, opt, state, n_qubit, dev, initial_state):
 	"""
 	Calculate the frobenius Norm between the ideal matrix and the one produced by the VQC
 
@@ -71,12 +89,12 @@ def frobeniusLoss(params, x_max, SU_ideal, rot_count, U_ideal, listSU, opt, stat
 	Returns
 	  	loss (float): the frobenius norm value 
 	"""
-
+	
 	if not state:
-		Msub = U_ideal - qml.matrix(USC.make_circuit_qnode(dev, n_qubit), wire_order=range(0, n_qubit))(params, x_max, rot_count)
+		Msub = U_ideal - qml.matrix(USC.make_circuit_qnode(dev, n_qubit), wire_order=range(0, n_qubit))(params, x_max, rot_count, [], [], initial_state)
 	else:
-		SU_ideal = calculate_closer_SU(listSU, qml.matrix(USC.make_circuit_qnode(dev, n_qubit), wire_order=range(0, n_qubit))(params, x_max, rot_count, [], [], True), SU_ideal, opt)
-		Msub = SU_ideal - qml.matrix(USC.make_circuit_qnode(dev, n_qubit), wire_order=range(0, n_qubit))(params, x_max, rot_count, [], [], True)
+		SU_ideal = calculate_closer_SU(listSU, qml.matrix(USC.make_circuit_qnode(dev, n_qubit), wire_order=range(0, n_qubit))(params, x_max, rot_count, [], [], initial_state, True), SU_ideal, opt)
+		Msub = SU_ideal - qml.matrix(USC.make_circuit_qnode(dev, n_qubit), wire_order=range(0, n_qubit))(params, x_max, rot_count, [], [], initial_state, True)
 	Msub_H = (np.conj(Msub)).T
 	
 	return np.real(np.trace(np.dot(Msub, Msub_H)) ** 0.5)

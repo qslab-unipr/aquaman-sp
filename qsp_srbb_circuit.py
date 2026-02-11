@@ -1,16 +1,13 @@
 import pennylane as qml
 from pennylane import numpy as pnp
 import numpy as np
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 from pennylane.templates.embeddings import AmplitudeEmbedding
-import config
-from pennylane_qiskit.remote import RemoteDevice
+#from pennylane_qiskit.remote import RemoteDevice
 
-#QSP algorithm with SRBB (only diagonal contributions).
-
-def make_circuit_qnode(dev, n_qubit):
+def make_circuit_qnode(dev, n_qubit, device_type='sim'):
 	@qml.qnode(dev)
-	def circuit(params, x_max, rot_count, x=[], U_approx=[], state = False):
+	def circuit(params, x_max, rot_count, x=[], U_approx=[], initial_state = False, state = False):
 		"""
 		Create the circuit from gray code
 
@@ -25,6 +22,9 @@ def make_circuit_qnode(dev, n_qubit):
 
 		simpli_Gray_collection=Simplification_Gray_matrix(Gray_matrix(n_qubit-1,False), n_qubit)
 
+		#fig, ax = qml.draw_mpl(SU_approx_circuit)(params, x_max, simpli_Gray_collection, state, n_qubit, initial_state)
+		#fig.show()
+		#input()
 		#if there is no U, then i want to train the network to achieve it
 		if len(U_approx) == 0:
 			#if fidelity or trace distance are used as loss function, encodes the state
@@ -33,12 +33,18 @@ def make_circuit_qnode(dev, n_qubit):
 				#qml.Barrier(wires = [0, 1])
 			
 			#add the VQC
-			SU_approx_circuit(params, x_max, simpli_Gray_collection, state, n_qubit)
-			
-			if len(x) == 0:
-				return qml.density_matrix(range(n_qubit))
+			SU_approx_circuit(params, x_max, simpli_Gray_collection, state, n_qubit, initial_state)
+			if device_type == 'hw':
+				return [
+					qml.expval(qml.PauliZ(0)),           # <Z ⊗ I>
+					qml.expval(qml.PauliZ(1)),           # <I ⊗ Z>
+					qml.expval(qml.PauliZ(0) @ qml.PauliZ(1))  # <Z ⊗ Z>
+				]
 			else:
-				return qml.density_matrix(range(n_qubit)), qml.state(), qml.probs(range(n_qubit))
+				if len(x) == 0:
+					return qml.density_matrix(range(n_qubit))
+				else:
+					return qml.density_matrix(range(n_qubit)), qml.state(), qml.probs(range(n_qubit))
 			
 		else: #testing
 			if len(x) != 0:
@@ -48,7 +54,7 @@ def make_circuit_qnode(dev, n_qubit):
 			if len(params) == 0:
 				qml.QubitUnitary(U_approx, wires = range(n_qubit))
 			else:
-				SU_approx_circuit(params, x_max, simpli_Gray_collection, state, n_qubit)			
+				SU_approx_circuit(params, x_max, simpli_Gray_collection, state, n_qubit, initial_state)			
 
 			if isinstance(dev, RemoteDevice):
 				return qml.counts(wires = range(n_qubit)), qml.counts(wires =range(n_qubit)), qml.probs(range(n_qubit))
@@ -234,7 +240,7 @@ def ZETA_factor(theta_collection_ZETA,simpli_Gray_collection, n, modulo = True):
 		qml.S(n-1)
 	
 
-def SU_approx_circuit(params, x_max, simpli_Gray_collection, state, n_qubit):
+def SU_approx_circuit(params, x_max, simpli_Gray_collection, state, n_qubit, initial_state):
 	"""
 		Generate the VQC
 
@@ -248,7 +254,8 @@ def SU_approx_circuit(params, x_max, simpli_Gray_collection, state, n_qubit):
 	
 	if not state:
 		theta_collection_ZETA=params[1:]
-		qml.RY(params[0], wires = 0)
+		if not initial_state:
+			qml.RY(params[0], wires = 0)
 	else:
 		theta_collection_ZETA = params
 
@@ -265,20 +272,36 @@ def SU_approx_circuit(params, x_max, simpli_Gray_collection, state, n_qubit):
 		#ZETA FACTOR
 		if not state:
 			previous_index = 0
-			for n in range(2, n_qubit+1):
-				end_index = previous_index + 2**n - 1
-				#print(n)
-				theta_zeta_n = theta_collection_ZETA[previous_index: end_index]
-				#print(theta_zeta_n)
-				#input()
-				if n == 2:
-					ZETA_factor2qubits(theta_zeta_n, False)
-				else:
-					ZETA_factor(theta_zeta_n,simpli_Gray_collection[:n-1], n)
-				previous_index = end_index
+			if not initial_state:
+				for n in range(2, n_qubit+1):
+					end_index = previous_index + 2**n - 1
+					#print(n)
+					theta_zeta_n = theta_collection_ZETA[previous_index: end_index]
+					#print(theta_zeta_n)
+					#input()
+					if n == 2:
+						ZETA_factor2qubits(theta_zeta_n, False)
+					else:
+						ZETA_factor(theta_zeta_n,simpli_Gray_collection[:n-1], n)
+					previous_index = end_index
+			else: #circuit inverted if |psi> -> |0>
+				for n in range(n_qubit, 1, -1):
+					end_index = previous_index + 2**n - 1
+					#print(n)
+					theta_zeta_n = theta_collection_ZETA[previous_index: end_index]
+					#print(theta_zeta_n)
+					#input()
+					if n == 2:
+						ZETA_factor2qubits(theta_zeta_n, False)
+					else:
+						ZETA_factor(theta_zeta_n,simpli_Gray_collection[:n-1], n)
+					previous_index = end_index
 		else:
 			#VQC phase
 			ZETA_factor(theta_collection_ZETA,simpli_Gray_collection, n_qubit, False)
+
+	if not state and initial_state:
+		qml.RY(params[0], wires = 0)
 
 def test(dev, n_qubit):
 	@qml.qnode(dev)
@@ -321,7 +344,7 @@ def test(dev, n_qubit):
 
 def test_srbb_method(dev, n_qubit):
 	@qml.qnode(dev)
-	def circuit(U, state, dm = False):
+	def circuit(U, state, U_approxIS = None, initial_state = None, dm = False):
 		"""
 		Test VQC
 
@@ -330,6 +353,14 @@ def test_srbb_method(dev, n_qubit):
 			state (bool): true for precise state, false for probabilities
 			dm (bool): True to retrieve density matrix for trace distance computation
 		"""
+
+		if initial_state is not None:
+			AmplitudeEmbedding(initial_state, range(n_qubit), normalize=True)
+		
+		if U_approxIS is not None:
+			qml.QubitUnitary(U_approxIS, wires = range(n_qubit))
+
+
 		qml.QubitUnitary(U, wires = range(n_qubit))
 
 		if state:
@@ -342,3 +373,42 @@ def test_srbb_method(dev, n_qubit):
 	return circuit
 
 
+
+def test_srbb_method_params(dev, n_qubit):
+	@qml.qnode(dev)
+	def circuit(paramsMod, paramsPhase, state, paramsModIS = None, paramsPhaseIS = None, initial_state = None, dm = False):
+		"""
+		Test VQC
+
+		Args:
+			U (np.array): approximated U
+			state (bool): true for precise state, false for probabilities
+			dm (bool): True to retrieve density matrix for trace distance computation
+		"""
+
+		x_max=2**(n_qubit-1)-1
+
+		if initial_state is not None:
+			AmplitudeEmbedding(initial_state, range(n_qubit), normalize=True)
+		
+		if paramsModIS is not None:
+			simpli_Gray_collection=Simplification_Gray_matrix(Gray_matrix(n_qubit-1,False), n_qubit)
+			SU_approx_circuit(paramsPhaseIS, x_max, simpli_Gray_collection, True, n_qubit, True)
+			SU_approx_circuit(paramsModIS, x_max, simpli_Gray_collection, False, n_qubit, True)			
+			
+		
+		if paramsMod is not None:
+			simpli_Gray_collection=Simplification_Gray_matrix(Gray_matrix(n_qubit-1,False), n_qubit)
+			SU_approx_circuit(paramsMod, x_max, simpli_Gray_collection, False, n_qubit, False)
+
+			SU_approx_circuit(paramsPhase, x_max, simpli_Gray_collection, True, n_qubit, False)
+
+
+		if state:
+			if not dm:
+				return qml.state()
+			else: 
+				return qml.density_matrix(wires = range(n_qubit))
+		else:
+			return qml.probs(wires = range(n_qubit))
+	return circuit
